@@ -4,7 +4,7 @@ from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-
+from linked_list import LinkedList
 #app
 app = Flask(__name__)
 
@@ -30,7 +30,7 @@ class User(db.Model):
     email = db.Column(db.String(50))
     address = db.Column(db.String(200))
     phone = db.Column(db.String(10))
-    posts = db.relationship("BlogPost")
+    posts = db.relationship("BlogPost", cascade="all, delete")
 
 class BlogPost(db.Model):
     __tablename__ = "blog_post"
@@ -44,23 +44,79 @@ class BlogPost(db.Model):
 #routes
 @app.route("/user", methods=["POST"])
 def create_user():
-    pass
+    data = request.get_json()
+    new_user = User(
+        name = data["name"],
+        email = data["email"],
+        address = data["address"],
+        phone = data["phone"]
+    )
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({"message": "User created "}), 200
 
 @app.route("/user/descending_id", methods=["GET"])
 def get_all_user_descending():
-    pass
+    users = User.query.all()
+    all_user_ll = LinkedList()
+
+    for user in users:
+        all_user_ll.insert_beginning(
+            {
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "address": user.address,
+                "phone": user.phone
+            }
+        )
+    return jsonify(all_user_ll.to_array()), 200
 
 @app.route("/user/assending_id", methods=["GET"])
 def get_all_user_assending():
-    pass
+    users = User.query.all()
+    all_user_ll = LinkedList()
+
+    for user in users:
+        all_user_ll.insert_end(
+            {
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "address": user.address,
+                "phone": user.phone
+            }
+        )
+    return jsonify(all_user_ll.to_array()), 200
 
 @app.route("/user/<user_id>", methods=["GET"])
 def get_user(user_id):
-    pass
+    users = User.query.all()
+    all_user_ll = LinkedList()
+
+    for user in users:
+        if user.id == int(user_id):
+            response = {
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "address": user.address,
+                "phone": user.phone
+            }
+            return jsonify(response),200
+
+    return jsonify({"message": "User not present"}), 200     
 
 @app.route("/user/<user_id>", methods=["DELETE"])
 def delete_user(user_id):
-    pass
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return jsonify({"message": "User does not exist"})
+
+    db.session.delete(user)
+    db.session.commit()
+
+    return jsonify({"message": "User deleted"}), 200
 
 @app.route("/bog-post/<user_id>", methods=["POST"])
 def create_blog_post(user_id):
